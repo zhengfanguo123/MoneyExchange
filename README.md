@@ -32,3 +32,14 @@ Features:
 3. Run `./gradlew installDebug` to build and deploy the app, or use Android Studio's **Run** button.
 4. The app appears on the device as `MoneyExchange` and is ready for testing.
 
+### Packaging an APK in Android Studio
+1. Open the project in [Android Studio](https://developer.android.com/studio) and let it sync.
+2. From the menu bar choose **Build > Build Bundle(s)/APK(s) > Build APK(s)**.
+3. When the build finishes, click **locate** in the notification or browse to `app/build/outputs/apk/debug/app-debug.apk`.
+4. For a release build select **Build > Build Bundle(s)/APK(s) > Build Bundle(s)** and sign the bundle or APK as needed.
+
+### Running an APK in Android Studio
+1. Start an emulator from **Tools > Device Manager** or connect an Android device with USB debugging enabled.
+2. In Device Manager press **Install APK**, then select the generated APK file, or drag the APK onto a running emulator window.
+3. Android Studio installs the APK on the selected device and launches the `MoneyExchange` app.
+
