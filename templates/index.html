@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Travel Expense Tracker</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</head>
+<body>
+<h1>Travel Expense Tracker</h1>
+<div id="setup">
+    <label for="country">Destination Country:</label>
+    <select id="country">
+        {% for c in countries %}
+        <option value="{{ c.code }}" data-currency="{{ c.currency }}">{{ c.name }}</option>
+        {% endfor %}
+    </select>
+    <label for="budget">Total Budget (KRW):</label>
+    <input type="number" id="budget" min="0">
+    <button id="start-btn">Start Trip</button>
+</div>
+
+<div id="tracker" style="display:none;">
+    <p>Currency: <span id="currency-code"></span></p>
+    <p>Remaining Budget: <span id="remaining"></span> KRW</p>
+    <h2>Add Expense</h2>
+    <label for="amount">Amount:</label>
+    <input type="number" id="amount" min="0" step="0.01">
+    <label for="note">Note:</label>
+    <input type="text" id="note">
+    <button id="add-expense">Add</button>
+
+    <h2>Expenses</h2>
+    <table id="history">
+        <thead>
+        <tr>
+            <th>Local Amount</th>
+            <th>KRW</th>
+            <th>Note</th>
+            <th>Remaining KRW</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+</body>
+</html>
