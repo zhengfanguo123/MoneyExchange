@@ -1,7 +1,8 @@
 from flask import Flask, render_template, request, jsonify
-from babel.numbers import get_territory_currency
+from babel.numbers import get_territory_currencies
 import pycountry
 import requests
+from datetime import date
 
 app = Flask(__name__)
 
@@ -15,19 +16,21 @@ state = {
 }
 
 
+def get_country_currency(country_code: str):
+    currencies = get_territory_currencies(country_code, date.today())
+    return currencies[0] if currencies else None
+
+
 def get_countries():
     countries = []
     for country in pycountry.countries:
-        try:
-            currency = get_territory_currency(country.alpha_2)
+        currency = get_country_currency(country.alpha_2)
+        if currency:
             countries.append({
                 "code": country.alpha_2,
                 "name": country.name,
-                "currency": currency
+                "currency": currency,
             })
-        except Exception:
-            # Some territories may not have a currency
-            continue
     countries.sort(key=lambda c: c["name"])
     return countries
 
@@ -42,14 +45,16 @@ def set_budget():
     data = request.get_json()
     country_code = data.get("country")
     budget = float(data.get("budget", 0))
-    currency = get_territory_currency(country_code)
-    state.update({
-        "country": country_code,
-        "currency": currency,
-        "budget": budget,
-        "remaining": budget,
-        "expenses": []
-    })
+    currency = get_country_currency(country_code)
+    state.update(
+        {
+            "country": country_code,
+            "currency": currency,
+            "budget": budget,
+            "remaining": budget,
+            "expenses": [],
+        }
+    )
     return jsonify({"currency": currency, "remaining": state["remaining"]})
 
 

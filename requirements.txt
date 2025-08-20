@@ -1,4 +1,4 @@
 Flask
 requests
 pycountry
-Babel
+Babel>=2.10
