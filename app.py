@@ -68,8 +68,8 @@ def add_expense():
 
     try:
         resp = requests.get(
-            "https://api.exchangerate.host/latest",
-            params={"base": state["currency"], "symbols": "KRW"},
+            "https://api.frankfurter.app/latest",
+            params={"amount": amount_local, "from": state["currency"], "to": "KRW"},
             timeout=10,
         )
         data = resp.json()
