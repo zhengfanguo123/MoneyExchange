@@ -66,17 +66,23 @@ def add_expense():
     amount_local = float(data.get("amount", 0))
     note = data.get("note", "")
 
-    # Call exchange rate API for latest rate
-    resp = requests.get(
-        "https://api.exchangerate.host/latest",
-        params={"base": state["currency"], "symbols": "KRW"},
-        timeout=10,
-    )
-    data = resp.json()
-    rate = data.get("rates", {}).get("KRW")
-    if rate is None:
+    try:
+        resp = requests.get(
+            "https://api.exchangerate.host/convert",
+            params={
+                "from": state["currency"],
+                "to": "KRW",
+                "amount": amount_local,
+            },
+            timeout=10,
+        )
+        data = resp.json()
+    except Exception:
+        return jsonify({"error": "Exchange rate request failed"}), 502
+
+    krw_amount = data.get("result")
+    if krw_amount is None:
         return jsonify({"error": "Exchange rate unavailable"}), 502
-    krw_amount = amount_local * rate
 
     state["remaining"] -= krw_amount
     expense = {
