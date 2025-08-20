@@ -62,6 +62,7 @@ def set_budget():
 def add_expense():
     if not state.get("currency"):
         return jsonify({"error": "Budget not set"}), 400
+
     data = request.get_json()
     amount_local = float(data.get("amount", 0))
     note = data.get("note", "")
@@ -76,21 +77,21 @@ def add_expense():
     except Exception:
         return jsonify({"error": "Exchange rate request failed"}), 502
 
-    rate = data.get("rates", {}).get("KRW")
-    if rate is None:
+    krw_amount = data.get("rates", {}).get("KRW")
+    if krw_amount is None:
         return jsonify({"error": "Exchange rate unavailable"}), 502
 
-    krw_amount = rate * amount_local
     state["remaining"] -= krw_amount
     expense = {
         "local": amount_local,
         "currency": state["currency"],
         "krw": krw_amount,
         "note": note,
-        "remaining": state["remaining"]
+        "remaining": state["remaining"],
     }
     state["expenses"].append(expense)
     return jsonify(expense)
+
 
 
 if __name__ == "__main__":
