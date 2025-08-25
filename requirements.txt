@@ -1,0 +1,6 @@
+Flask
+requests
+pycountry
+gunicorn
+flask-cors
+Babel>=2.10
