@@ -1,19 +1,29 @@
-FROM python:3.11-slim
+# Use AWS's public ECR mirror of Docker Official Images to avoid Docker Hub rate limits
+FROM public.ecr.aws/docker/library/python:3.11-slim
 
-# System deps (optional but common)
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
+# (Optional) system deps commonly needed to build wheels
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Python runtime niceties
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app
+# Install Python deps first to leverage Docker layer caching
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the app
 COPY . .
 
-# App Runner/containers use a PORT env var; default to 8080
+# App Runner (and many PaaS) provide PORT; default to 8080 for local/dev
 ENV PORT=8080
 EXPOSE 8080
 
-# If your Flask entrypoint is app.py with "app = Flask(__name__)"
-# change "app:app" below to match your module and variable.
-CMD ["bash", "-lc", "exec gunicorn app:app -w 2 -k gthread -b 0.0.0.0:${PORT} --timeout 120"]
+# Run gunicorn; shell form lets $PORT expand correctly
+# If your entry is not app:app, change it (e.g., wsgi:application)
+CMD exec gunicorn app:app -w 2 -k gthread -b 0.0.0.0:$PORT --timeout 120
