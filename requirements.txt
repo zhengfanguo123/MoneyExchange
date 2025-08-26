@@ -2,3 +2,6 @@ Flask
 requests
 pycountry
 Babel>=2.10
+SQLAlchemy
+pyodbc
+python-dotenv
