@@ -48,4 +48,55 @@ $(function() {
             }
         });
     });
+
+    $('#import-btn').on('click', function() {
+        $.ajax({
+            url: '/import_data',
+            method: 'GET',
+            success: function(res) {
+                const container = $('#imported-content');
+                container.empty();
+                if (!res.trips || res.trips.length === 0) {
+                    container.append($('<p>').text('No data found.'));
+                } else {
+                    res.trips.forEach(function(trip) {
+                        const tripTable = $('<table>').addClass('data-table');
+                        tripTable.append('<thead><tr><th>Country</th><th>Budget KRW</th><th>Remaining KRW</th><th>Created</th></tr></thead>');
+                        const tBody = $('<tbody>');
+                        const tRow = $('<tr>');
+                        tRow.append($('<td>').text(trip.country_code));
+                        tRow.append($('<td>').text(parseFloat(trip.budget_krw).toFixed(2)));
+                        tRow.append($('<td>').text(parseFloat(trip.remaining_krw).toFixed(2)));
+                        tRow.append($('<td>').text(trip.created_at));
+                        tBody.append(tRow);
+                        const expRow = $('<tr>');
+                        const expCell = $('<td>').attr('colspan', 4);
+                        const expTable = $('<table>').addClass('data-table');
+                        expTable.append('<thead><tr><th>Local Amount</th><th>KRW Amount</th><th>Note</th><th>Remaining KRW</th><th>Timestamp</th></tr></thead>');
+                        const expBody = $('<tbody>');
+                        trip.expenses.forEach(function(exp) {
+                            const r = $('<tr>');
+                            r.append($('<td>').text(parseFloat(exp.local_amount).toFixed(2) + ' ' + exp.local_currency));
+                            r.append($('<td>').text(parseFloat(exp.krw_amount).toFixed(2)));
+                            r.append($('<td>').text(exp.note));
+                            r.append($('<td>').text(parseFloat(exp.remaining).toFixed(2)));
+                            r.append($('<td>').text(exp.created_at));
+                            expBody.append(r);
+                        });
+                        expTable.append(expBody);
+                        expCell.append(expTable);
+                        expRow.append(expCell);
+                        tBody.append(expRow);
+                        tripTable.append(tBody);
+                        container.append(tripTable);
+                    });
+                }
+                $('#imported-section').show();
+            },
+            error: function(err) {
+                const msg = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : 'Import failed';
+                alert(msg);
+            }
+        });
+    });
 });
