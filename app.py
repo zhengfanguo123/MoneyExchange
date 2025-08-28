@@ -258,6 +258,45 @@ def add_expense():
     return jsonify(response)
 
 
+@app.route("/import_data", methods=["GET"])
+def import_data():
+    if not engine:
+        return jsonify({"error": "Database not configured"}), 500
+    db = SessionLocal()
+    trips = db.query(Trip).order_by(Trip.id).all()
+    result = []
+    for trip in trips:
+        trip_dict = {
+            "id": trip.id,
+            "country_code": trip.country_code,
+            "currency": trip.currency,
+            "budget_krw": float(trip.budget_krw),
+            "remaining_krw": float(trip.remaining_krw),
+            "created_at": trip.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        expenses_data = []
+        remaining = float(trip.budget_krw)
+        expenses = sorted(trip.expenses, key=lambda e: e.created_at)
+        for e in expenses:
+            remaining -= float(e.krw_amount)
+            expenses_data.append(
+                {
+                    "id": e.id,
+                    "local_amount": float(e.local_amount),
+                    "local_currency": e.local_currency,
+                    "krw_amount": float(e.krw_amount),
+                    "fx_rate": float(e.fx_rate) if e.fx_rate is not None else None,
+                    "note": e.note,
+                    "remaining": remaining,
+                    "created_at": e.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+            )
+        trip_dict["expenses"] = expenses_data
+        result.append(trip_dict)
+    db.close()
+    return jsonify({"trips": result})
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
 
