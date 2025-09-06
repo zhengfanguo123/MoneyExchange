@@ -100,6 +100,22 @@ def log_expense(
         )
 
 
+def log_delete_trip(trip_id: int, expense_count: int) -> None:
+    """Log deletion of a trip and its expenses."""
+    log_dir = ensure_log_dir()
+    ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with (log_dir / "delete.log").open("a", encoding="utf-8") as f:
+        f.write(f"{ts} | delete_trip | id={trip_id} | expenses={expense_count}\n")
+
+
+def log_delete_expense(expense_id: int, trip_id: int) -> None:
+    """Log deletion of a single expense."""
+    log_dir = ensure_log_dir()
+    ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    with (log_dir / "delete.log").open("a", encoding="utf-8") as f:
+        f.write(f"{ts} | delete_expense | id={expense_id} | trip={trip_id}\n")
+
+
 def get_country_currency(country_code: str) -> str | None:
     currencies = get_territory_currencies(country_code, date.today())
     return currencies[0] if currencies else None
@@ -256,6 +272,94 @@ def add_expense():
     if db_error:
         response["error"] = db_error
     return jsonify(response)
+
+
+@app.route("/delete_trip/<int:trip_id>", methods=["DELETE"])
+def delete_trip(trip_id: int):
+    if not engine:
+        return jsonify({"error": "Database not configured"}), 500
+    db = SessionLocal()
+    trip = db.get(Trip, trip_id)
+    if not trip:
+        db.close()
+        return jsonify({"error": "Trip not found"}), 404
+    expense_count = len(trip.expenses)
+    try:
+        for exp in list(trip.expenses):
+            db.delete(exp)
+        db.delete(trip)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        db.close()
+        return jsonify({"error": str(e)}), 500
+    db.close()
+    log_delete_trip(trip_id, expense_count)
+    return jsonify({"ok": True, "deleted": trip_id})
+
+
+@app.route("/delete_expense/<int:expense_id>", methods=["DELETE"])
+def delete_expense(expense_id: int):
+    if not engine:
+        return jsonify({"error": "Database not configured"}), 500
+    db = SessionLocal()
+    expense = db.get(Expense, expense_id)
+    if not expense:
+        db.close()
+        return jsonify({"error": "Expense not found"}), 404
+    trip = db.get(Trip, expense.trip_id)
+    try:
+        if trip:
+            trip.remaining_krw = trip.remaining_krw + expense.krw_amount
+        exp_trip_id = expense.trip_id
+        db.delete(expense)
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        db.close()
+        return jsonify({"error": str(e)}), 500
+    db.close()
+    log_delete_expense(expense_id, exp_trip_id)
+    return jsonify({"ok": True, "deleted": expense_id})
+
+
+@app.route("/import_data", methods=["GET"])
+def import_data():
+    if not engine:
+        return jsonify({"error": "Database not configured"}), 500
+    db = SessionLocal()
+    trips = db.query(Trip).order_by(Trip.id).all()
+    result = []
+    for trip in trips:
+        trip_dict = {
+            "id": trip.id,
+            "country_code": trip.country_code,
+            "currency": trip.currency,
+            "budget_krw": float(trip.budget_krw),
+            "remaining_krw": float(trip.remaining_krw),
+            "created_at": trip.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        expenses_data = []
+        remaining = float(trip.budget_krw)
+        expenses = sorted(trip.expenses, key=lambda e: e.created_at)
+        for e in expenses:
+            remaining -= float(e.krw_amount)
+            expenses_data.append(
+                {
+                    "id": e.id,
+                    "local_amount": float(e.local_amount),
+                    "local_currency": e.local_currency,
+                    "krw_amount": float(e.krw_amount),
+                    "fx_rate": float(e.fx_rate) if e.fx_rate is not None else None,
+                    "note": e.note,
+                    "remaining": remaining,
+                    "created_at": e.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+            )
+        trip_dict["expenses"] = expenses_data
+        result.append(trip_dict)
+    db.close()
+    return jsonify({"trips": result})
 
 
 if __name__ == "__main__":
