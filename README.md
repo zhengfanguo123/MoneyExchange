@@ -1,12 +1,13 @@
 # MoneyExchange
 
-A web-based travel expense tracker built with Flask and jQuery. Select a destination country, set your total budget in Korean Won (KRW), and log expenses in the local currency while the app automatically converts them to KRW.
+A web-based travel expense tracker built with Flask and jQuery. Select a destination country, set your total budget in Korean Won (KRW), and log expenses in the local currency while the app automatically converts them to KRW. All trip data is stored in your browser using `localStorage` so each user keeps their own records.
 
 ## Features
 - Choose from a list of countries; the app automatically determines the local currency.
 - Enter a total travel budget in KRW and view the remaining balance.
 - Add expenses in the local currency with an optional note.
 - Expenses are converted to KRW using [exchangerate.host](https://exchangerate.host) and deducted from your budget.
+- Trips and expenses are persisted locally in the browser; clearing browser storage removes the data.
 - View a history table showing the local amount, converted KRW value, note, and remaining budget.
 
 ## Setup

@@ -5,27 +5,90 @@ $(function() {
 
     function fmtDate(isoStr) {
         const d = new Date(isoStr);
-        return d.toLocaleString(undefined, {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+        return d.toLocaleString();
     }
 
-    function loadImportedData() {
-        $.ajax({
-            url: '/import_data',
-            method: 'GET',
-            success: function(res) {
-                const container = $('#imported-content');
-                container.empty();
-                if (!res.trips || res.trips.length === 0) {
-                    container.append($('<p>').text('No data found.'));
-                } else {
-                    res.trips.forEach(function(trip) {
-                        const item = $(`
+    function loadTripsFromStorage() {
+        const data = localStorage.getItem('trips');
+        return data ? JSON.parse(data) : [];
+    }
+
+    function saveTripsToStorage(trips) {
+        localStorage.setItem('trips', JSON.stringify(trips));
+    }
+
+    function getNextTripId() {
+        let id = parseInt(localStorage.getItem('nextTripId') || '1', 10);
+        localStorage.setItem('nextTripId', id + 1);
+        return id;
+    }
+
+    function getNextExpenseId(trip) {
+        if (!trip.nextExpenseId) trip.nextExpenseId = 1;
+        const id = trip.nextExpenseId;
+        trip.nextExpenseId += 1;
+        return id;
+    }
+
+    function deleteTripFromStorage(tripId) {
+        const trips = loadTripsFromStorage().filter(t => t.id !== tripId);
+        saveTripsToStorage(trips);
+    }
+
+    function deleteExpenseFromStorage(tripId, expenseId) {
+        const trips = loadTripsFromStorage();
+        const trip = trips.find(t => t.id === tripId);
+        if (trip) {
+            trip.expenses = trip.expenses.filter(e => e.id !== expenseId);
+            let remaining = trip.budget_krw;
+            trip.expenses.forEach(e => {
+                remaining -= e.krw_amount;
+                e.remaining = remaining;
+            });
+            trip.remaining_krw = remaining;
+        }
+        saveTripsToStorage(trips);
+    }
+
+    function renderCurrentTrip() {
+        const tripId = parseInt(localStorage.getItem('currentTripId'), 10);
+        if (!tripId) {
+            $('#tracker').hide();
+            $('#setup').show();
+            return;
+        }
+        const trips = loadTripsFromStorage();
+        const trip = trips.find(t => t.id === tripId);
+        if (!trip) {
+            $('#tracker').hide();
+            $('#setup').show();
+            return;
+        }
+        $('#currency-code').text(trip.currency);
+        $('#remaining').text(fmtNumber(trip.remaining_krw));
+        const tbody = $('#history tbody');
+        tbody.empty();
+        trip.expenses.forEach(exp => {
+            const row = $('<tr>');
+            row.append($('<td>').text(fmtNumber(exp.local_amount) + ' ' + exp.local_currency));
+            row.append($('<td>').text(fmtNumber(exp.krw_amount)));
+            row.append($('<td>').text(exp.note));
+            row.append($('<td>').text(fmtNumber(exp.remaining)));
+            tbody.append(row);
+        });
+        $('#setup').hide();
+        $('#tracker').show();
+    }
+
+    function renderImportedData() {
+        const trips = loadTripsFromStorage();
+        const container = $('#imported-content');
+        container.empty();
+        if (trips.length === 0) {
+            container.append($('<p>').text('No data found.'));
+        } else {
+            trips.forEach(trip => {
+                const item = $(`
 <div class="accordion-item" id="trip-card-${trip.id}">
   <h2 class="accordion-header" id="heading${trip.id}">
     <div class="d-flex align-items-center w-100">
@@ -47,9 +110,9 @@ $(function() {
     </div>
   </div>
 </div>`);
-                        const tbody = item.find('tbody');
-                        trip.expenses.forEach(function(exp) {
-                            const row = $(`
+                const tbody = item.find('tbody');
+                trip.expenses.forEach(exp => {
+                    const row = $(`
 <tr id="expense-row-${exp.id}">
   <td>${fmtNumber(exp.local_amount)} ${exp.local_currency}</td>
   <td>${fmtNumber(exp.krw_amount)}</td>
@@ -58,39 +121,37 @@ $(function() {
   <td>${fmtDate(exp.created_at)}</td>
   <td><button class="btn btn-danger btn-sm delete-expense" data-expense-id="${exp.id}" data-trip-id="${trip.id}">Delete</button></td>
 </tr>`);
-                            tbody.append(row);
-                        });
-                        container.append(item);
-                    });
-                }
-                $('#imported-section').show();
-            },
-            error: function(err) {
-                const msg = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : 'Import failed';
-                alert(msg);
-            }
-        });
+                    tbody.append(row);
+                });
+                container.append(item);
+            });
+        }
+        $('#imported-section').show();
     }
 
     $('#start-btn').on('click', function() {
         const country = $('#country').val();
+        const currency = $('#country option:selected').data('currency');
         const budget = parseFloat($('#budget').val());
         if (!budget || budget <= 0) {
             alert('Enter a valid budget');
             return;
         }
-        $.ajax({
-            url: '/set_budget',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({country: country, budget: budget}),
-            success: function(res) {
-                $('#currency-code').text(res.currency);
-                $('#remaining').text(fmtNumber(res.remaining));
-                $('#setup').hide();
-                $('#tracker').show();
-            }
-        });
+        const trips = loadTripsFromStorage();
+        const id = getNextTripId();
+        const trip = {
+            id: id,
+            country_code: country,
+            currency: currency,
+            budget_krw: budget,
+            remaining_krw: budget,
+            created_at: new Date().toISOString(),
+            expenses: []
+        };
+        trips.push(trip);
+        saveTripsToStorage(trips);
+        localStorage.setItem('currentTripId', id);
+        renderCurrentTrip();
     });
 
     $('#add-expense').on('click', function() {
@@ -100,56 +161,61 @@ $(function() {
             alert('Enter a valid amount');
             return;
         }
-        $.ajax({
-            url: '/add_expense',
-            method: 'POST',
-            contentType: 'application/json',
-            data: JSON.stringify({amount: amount, note: note}),
-            success: function(res) {
-                const row = $('<tr>');
-                row.append($('<td>').text(fmtNumber(amount) + ' ' + res.currency));
-                row.append($('<td>').text(fmtNumber(res.krw)));
-                row.append($('<td>').text(res.note));
-                row.append($('<td>').text(fmtNumber(res.remaining)));
-                $('#history tbody').append(row);
-                $('#remaining').text(fmtNumber(res.remaining));
+        const tripId = parseInt(localStorage.getItem('currentTripId'), 10);
+        const trips = loadTripsFromStorage();
+        const trip = trips.find(t => t.id === tripId);
+        if (!trip) {
+            alert('Trip not found');
+            return;
+        }
+        fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${trip.currency}&to=KRW`)
+            .then(resp => resp.json())
+            .then(data => {
+                const krw = data.rates && data.rates.KRW ? data.rates.KRW : 0;
+                const remaining = trip.remaining_krw - krw;
+                const expId = getNextExpenseId(trip);
+                const expense = {
+                    id: expId,
+                    local_amount: amount,
+                    local_currency: trip.currency,
+                    krw_amount: krw,
+                    note: note,
+                    remaining: remaining,
+                    created_at: new Date().toISOString()
+                };
+                trip.remaining_krw = remaining;
+                trip.expenses.push(expense);
+                saveTripsToStorage(trips);
+                renderCurrentTrip();
                 $('#amount').val('');
                 $('#note').val('');
-            },
-            error: function(err) {
-                alert(err.responseJSON.error);
-            }
-        });
+            })
+            .catch(() => alert('Exchange rate request failed'));
     });
 
-    $('#import-btn').on('click', loadImportedData);
+    $('#import-btn').on('click', renderImportedData);
 
     $(document).on('click', '.delete-trip', function() {
         const id = $(this).data('trip-id');
         if (!confirm('Delete this trip and all its expenses?')) return;
-        $.ajax({
-            url: '/delete_trip/' + id,
-            method: 'DELETE',
-            success: function() { loadImportedData(); },
-            error: function(err) {
-                const msg = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : 'Delete failed';
-                alert(msg);
-            }
-        });
+        deleteTripFromStorage(id);
+        if (parseInt(localStorage.getItem('currentTripId'), 10) === id) {
+            localStorage.removeItem('currentTripId');
+            renderCurrentTrip();
+        }
+        renderImportedData();
     });
 
     $(document).on('click', '.delete-expense', function() {
-        const id = $(this).data('expense-id');
+        const tripId = $(this).data('trip-id');
+        const expId = $(this).data('expense-id');
         if (!confirm('Delete this expense?')) return;
-        $.ajax({
-            url: '/delete_expense/' + id,
-            method: 'DELETE',
-            success: function() { loadImportedData(); },
-            error: function(err) {
-                const msg = err.responseJSON && err.responseJSON.error ? err.responseJSON.error : 'Delete failed';
-                alert(msg);
-            }
-        });
+        deleteExpenseFromStorage(tripId, expId);
+        if (parseInt(localStorage.getItem('currentTripId'), 10) === tripId) {
+            renderCurrentTrip();
+        }
+        renderImportedData();
     });
-});
 
+    renderCurrentTrip();
+});
