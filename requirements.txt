@@ -1,0 +1,4 @@
+Flask
+pycountry
+Babel>=2.10
+python-dotenv
