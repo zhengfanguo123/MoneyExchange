@@ -11,7 +11,10 @@
     <script src="/static/js/app.js"></script>
 </head>
 <body class="container py-4">
-<h1 class="mb-4">여행비 지출 기록기</h1>
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <h1 class="mb-0">여행비 지출 기록기</h1>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}">Admin</a>
+</div>
 <div id="setup" class="mb-4">
     <div class="mb-3">
         <label for="country" class="form-label">여행지: </label>
@@ -25,10 +28,17 @@
         <label for="budget" class="form-label">여행 총 경비 (KRW):</label>
         <input type="number" id="budget" min="0" class="form-control">
     </div>
-    <button id="start-btn" class="btn btn-primary">Start Trip</button>
+    <div class="d-flex flex-wrap gap-2">
+        <button id="start-world-btn" class="btn btn-primary">World Travel</button>
+        <button id="start-domestic-btn" class="btn btn-primary">Domestic (KRW only)</button>
+    </div>
 </div>
 
 <div id="tracker" style="display:none;" class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h4 mb-0" id="trip-label"></h2>
+        <span class="badge bg-primary" id="trip-country"></span>
+    </div>
     <p>Currency: <span id="currency-code"></span></p>
     <p>Remaining Budget: <span id="remaining"></span> KRW</p>
     <h2 class="h4">지출 추가: </h2>
@@ -62,8 +72,15 @@
     </div>
 </div>
 
-<div class="d-flex gap-2 mb-3">
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
     <button id="import-btn" class="btn btn-info">지출 내역 확인</button>
+    <label for="export-scope" class="form-label mb-0">내보내기 범위</label>
+    <select id="export-scope" class="form-select w-auto">
+        <option value="current">현재 여행만</option>
+        <option value="all" selected>모든 여행</option>
+    </select>
+    <button id="export-txt-btn" class="btn btn-outline-primary">TXT 내보내기</button>
+    <button id="export-csv-btn" class="btn btn-outline-success">CSV 내보내기</button>
     <button id="clear-storage-btn" class="btn btn-danger">지출 내역 삭제</button>
 </div>
 <div id="imported-section" style="display:none;">
