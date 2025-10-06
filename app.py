@@ -4,7 +4,15 @@ import pycountry
 from babel import Locale
 from babel.numbers import get_territory_currencies
 from dotenv import load_dotenv
-from flask import Flask, redirect, render_template, request, session, url_for
+from flask import (
+    Flask,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 
 load_dotenv()
 
@@ -67,6 +75,11 @@ def get_countries():
 def index():
     increment_visit_count()
     return render_template("index.html", countries=get_countries())
+
+
+@app.route("/static/js/app.js")
+def serve_app_js():
+    return send_from_directory("js", "app.js")
 
 
 @app.route("/admin", methods=["GET", "POST"])
