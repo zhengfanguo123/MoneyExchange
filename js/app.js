@@ -288,6 +288,49 @@ $(function() {
         return Number(expense.fx_rate).toFixed(6);
     }
 
+    function convertWithFrankfurter(amount, currency) {
+        const url = `https://api.frankfurter.app/latest?amount=${amount}&from=${currency}&to=KRW`;
+        return fetch(url).then(resp => {
+            if (!resp.ok) {
+                throw new Error('Frankfurter request failed');
+            }
+            return resp.json();
+        }).then(data => {
+            const rates = data && data.rates ? data.rates : null;
+            const krwValue = rates && rates.KRW !== undefined ? Number(rates.KRW) : null;
+            if (!Number.isFinite(krwValue)) {
+                throw new Error('Frankfurter missing KRW rate');
+            }
+            const krwRaw = Number(krwValue);
+            const rate = amount ? krwRaw / amount : null;
+            return { krw: roundCurrency(krwRaw), rate, provider: 'frankfurter' };
+        });
+    }
+
+    function convertWithExchangeRateHost(amount, currency) {
+        const url = `https://api.exchangerate.host/convert?from=${currency}&to=KRW&amount=${amount}`;
+        return fetch(url).then(resp => {
+            if (!resp.ok) {
+                throw new Error('ExchangeRate.host request failed');
+            }
+            return resp.json();
+        }).then(data => {
+            const result = data && data.result !== undefined ? Number(data.result) : NaN;
+            if (!Number.isFinite(result) || data && data.success === false) {
+                throw new Error('ExchangeRate.host missing KRW rate');
+            }
+            const krwRaw = result;
+            const rate = amount ? krwRaw / amount : null;
+            return { krw: roundCurrency(krwRaw), rate, provider: 'exchangerate.host' };
+        });
+    }
+
+    function convertToKRW(amount, currency) {
+        return convertWithFrankfurter(amount, currency).catch(() =>
+            convertWithExchangeRateHost(amount, currency)
+        );
+    }
+
     function buildTextExport(trips) {
         if (trips.length === 0) return '';
         const lines = [];
@@ -510,11 +553,10 @@ $(function() {
             $('#note').val('');
             return;
         }
-        fetch(`https://api.frankfurter.app/latest?amount=${amount}&from=${trip.currency}&to=KRW`)
-            .then(resp => resp.json())
-            .then(data => {
-                const krw = roundCurrency(data.rates && data.rates.KRW ? data.rates.KRW : 0);
-                const fxRate = amount ? (krw / amount) : null;
+        convertToKRW(amount, trip.currency)
+            .then(result => {
+                const krw = result.krw;
+                const fxRate = result.rate;
                 const remaining = roundCurrency(trip.remaining_krw - krw);
                 const expense = {
                     id: getNextExpenseId(trip),
@@ -525,7 +567,7 @@ $(function() {
                     remaining: remaining,
                     created_at: new Date().toISOString(),
                     fx_rate: fxRate,
-                    fx_provider: 'frankfurter',
+                    fx_provider: result.provider,
                 };
                 trip.remaining_krw = remaining;
                 trip.expenses.push(expense);
