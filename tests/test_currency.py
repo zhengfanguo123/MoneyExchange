@@ -44,7 +44,8 @@ class FrankfurterSmokeTests(unittest.TestCase):
                 elif currency == "USD":
                     krw_amount = amount * usd_to_krw
                 else:
-                    self.assertIn(currency, rates)
+                    if currency not in rates:
+                        self.skipTest(f"Frankfurter missing rate for {currency}")
                     usd_to_local = rates[currency]
                     self.assertIsInstance(usd_to_local, (int, float))
                     self.assertGreater(usd_to_local, 0)
@@ -53,6 +54,25 @@ class FrankfurterSmokeTests(unittest.TestCase):
 
                 self.assertIsInstance(krw_amount, (int, float))
                 self.assertGreater(krw_amount, 0)
+
+
+class ExchangeRateFallbackTests(unittest.TestCase):
+    def test_er_api_usd_rates(self):
+        url = "https://open.er-api.com/v6/latest/USD"
+        try:
+            with urllib.request.urlopen(url, timeout=10) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+        except urllib.error.URLError as exc:  # pragma: no cover - network issues
+            self.skipTest(f"ER API not reachable: {exc}")
+
+        self.assertEqual(payload.get("result"), "success")
+        rates = payload.get("rates", {})
+        for currency in ("KRW", "RUB", "TWD"):
+            with self.subTest(currency=currency):
+                self.assertIn(currency, rates)
+                value = rates[currency]
+                self.assertIsInstance(value, (int, float))
+                self.assertGreater(value, 0)
 
 
 if __name__ == "__main__":  # pragma: no cover

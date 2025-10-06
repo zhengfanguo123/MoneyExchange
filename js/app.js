@@ -302,15 +302,63 @@ $(function() {
             return resp.json();
         }).then(data => {
             const rates = data && data.rates ? data.rates : null;
-            if (!rates || rates.KRW === undefined) {
+            if (!rates) {
+                throw new Error('Frankfurter missing rate table');
+            }
+            const krw = Number(rates.KRW);
+            if (!Number.isFinite(krw) || krw <= 0) {
                 throw new Error('Frankfurter missing KRW rate');
             }
+            let local = null;
+            if (targetCurrency && targetCurrency !== 'USD' && targetCurrency !== 'KRW') {
+                local = Number(rates[targetCurrency]);
+                if (!Number.isFinite(local) || local <= 0) {
+                    throw new Error('Frankfurter missing requested currency');
+                }
+            }
             return {
-                krw: Number(rates.KRW),
-                local: targetCurrency && targetCurrency !== 'USD' && targetCurrency !== 'KRW'
-                    ? Number(rates[targetCurrency])
-                    : null,
+                provider: 'frankfurter',
+                krw: krw,
+                local: local,
             };
+        });
+    }
+
+    function erApiUsdRates(targetCurrency) {
+        const url = 'https://open.er-api.com/v6/latest/USD';
+        return fetch(url).then(resp => {
+            if (!resp.ok) {
+                throw new Error('ER API request failed');
+            }
+            return resp.json();
+        }).then(data => {
+            if (!data || data.result !== 'success' || !data.rates) {
+                throw new Error('ER API missing rate table');
+            }
+            const rates = data.rates;
+            const krw = Number(rates.KRW);
+            if (!Number.isFinite(krw) || krw <= 0) {
+                throw new Error('ER API missing KRW rate');
+            }
+            let local = null;
+            if (targetCurrency && targetCurrency !== 'USD' && targetCurrency !== 'KRW') {
+                local = Number(rates[targetCurrency]);
+                if (!Number.isFinite(local) || local <= 0) {
+                    throw new Error('ER API missing requested currency');
+                }
+            }
+            return {
+                provider: 'erapi',
+                krw: krw,
+                local: local,
+            };
+        });
+    }
+
+    function fetchUsdRates(targetCurrency) {
+        return frankfurterUsdRates(targetCurrency).catch(error => {
+            console.warn('Frankfurter USD rate lookup failed, attempting fallback', error);
+            return erApiUsdRates(targetCurrency);
         });
     }
 
@@ -325,29 +373,29 @@ $(function() {
         }
 
         if (currency === 'USD') {
-            return frankfurterUsdRates('USD').then(rates => {
+            return fetchUsdRates('USD').then(rates => {
                 const usdToKrw = Number(rates.krw);
                 if (!Number.isFinite(usdToKrw)) {
-                    throw new Error('Frankfurter missing KRW rate');
+                    throw new Error('USD to KRW rate unavailable');
                 }
                 const krwRaw = baseAmount * usdToKrw;
                 const krw = roundCurrency(krwRaw);
                 const rate = baseAmount ? krwRaw / baseAmount : null;
-                return { krw, rate, provider: 'frankfurter' };
+                return { krw, rate, provider: rates.provider };
             });
         }
 
-        return frankfurterUsdRates(currency).then(rates => {
+        return fetchUsdRates(currency).then(rates => {
             const usdToKrw = Number(rates.krw);
             const usdToLocal = Number(rates.local);
             if (!Number.isFinite(usdToKrw) || !Number.isFinite(usdToLocal) || usdToLocal === 0) {
-                throw new Error('Frankfurter missing required rates');
+                throw new Error('USD conversion rates unavailable');
             }
             const usdAmount = baseAmount / usdToLocal;
             const krwRaw = usdAmount * usdToKrw;
             const krw = roundCurrency(krwRaw);
             const rate = baseAmount ? krwRaw / baseAmount : null;
-            return { krw, rate, provider: 'frankfurter' };
+            return { krw, rate, provider: rates.provider };
         });
     }
 
