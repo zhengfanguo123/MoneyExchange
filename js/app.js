@@ -167,11 +167,30 @@ $(function() {
         $('#trip-country').text(`${trip.country_code} | ${trip.currency}`);
     }
 
+    function showModeSelection() {
+        $('#mode-selection').show();
+        $('#world-setup').hide();
+        $('#domestic-setup').hide();
+    }
+
+    function showWorldSetup() {
+        $('#mode-selection').hide();
+        $('#domestic-setup').hide();
+        $('#world-setup').show();
+    }
+
+    function showDomesticSetup() {
+        $('#mode-selection').hide();
+        $('#world-setup').hide();
+        $('#domestic-setup').show();
+    }
+
     function renderCurrentTrip() {
         const tripId = parseInt(localStorage.getItem('currentTripId'), 10);
         if (!tripId) {
             $('#tracker').hide();
             $('#setup').show();
+            showModeSelection();
             return;
         }
         const trips = loadTripsFromStorage();
@@ -179,6 +198,7 @@ $(function() {
         if (!trip) {
             $('#tracker').hide();
             $('#setup').show();
+            showModeSelection();
             return;
         }
         updateTripHeader(trip);
@@ -383,7 +403,8 @@ $(function() {
     }
 
     function startTrip(mode) {
-        const budget = parseFloat($('#budget').val());
+        const budgetInput = mode === 'domestic' ? $('#domestic-budget') : $('#world-budget');
+        const budget = parseFloat(budgetInput.val());
         if (!Number.isFinite(budget) || budget <= 0) {
             alert('Enter a valid budget');
             return;
@@ -394,7 +415,7 @@ $(function() {
             country = 'KR';
             currency = 'KRW';
         } else {
-            const selected = $('#country option:selected');
+            const selected = $('#world-country option:selected');
             country = selected.val();
             currency = selected.data('currency');
             if (!currency) {
@@ -419,7 +440,26 @@ $(function() {
         saveTripsToStorage(trips);
         localStorage.setItem('currentTripId', id);
         renderCurrentTrip();
+        budgetInput.val('');
     }
+
+    $('#choose-world').on('click', function() {
+        showWorldSetup();
+    });
+
+    $('#choose-domestic').on('click', function() {
+        showDomesticSetup();
+    });
+
+    $('#cancel-world').on('click', function() {
+        $('#world-budget').val('');
+        showModeSelection();
+    });
+
+    $('#cancel-domestic').on('click', function() {
+        $('#domestic-budget').val('');
+        showModeSelection();
+    });
 
     $('#start-world-btn').on('click', function() {
         startTrip('world');

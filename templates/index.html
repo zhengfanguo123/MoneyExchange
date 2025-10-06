@@ -16,21 +16,39 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}">Admin</a>
 </div>
 <div id="setup" class="mb-4">
-    <div class="mb-3">
-        <label for="country" class="form-label">여행지: </label>
-        <select id="country" class="form-select">
-            {% for c in countries %}
-            <option value="{{ c.code }}" data-currency="{{ c.currency }}">{{ c.name }}</option>
-            {% endfor %}
-        </select>
+    <div id="mode-selection" class="d-flex flex-wrap gap-2">
+        <button id="choose-world" class="btn btn-primary">World Travel</button>
+        <button id="choose-domestic" class="btn btn-primary">Domestic (KRW only)</button>
     </div>
-    <div class="mb-3">
-        <label for="budget" class="form-label">여행 총 경비 (KRW):</label>
-        <input type="number" id="budget" min="0" class="form-control">
+
+    <div id="world-setup" class="mt-3" style="display:none;">
+        <div class="mb-3">
+            <label for="world-country" class="form-label">여행지: </label>
+            <select id="world-country" class="form-select">
+                {% for c in countries %}
+                <option value="{{ c.code }}" data-currency="{{ c.currency }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="world-budget" class="form-label">여행 총 경비 (KRW):</label>
+            <input type="number" id="world-budget" min="0" class="form-control">
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button id="start-world-btn" class="btn btn-primary">Start World Trip</button>
+            <button id="cancel-world" class="btn btn-outline-secondary">Back</button>
+        </div>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-        <button id="start-world-btn" class="btn btn-primary">World Travel</button>
-        <button id="start-domestic-btn" class="btn btn-primary">Domestic (KRW only)</button>
+
+    <div id="domestic-setup" class="mt-3" style="display:none;">
+        <div class="mb-3">
+            <label for="domestic-budget" class="form-label">여행 총 경비 (KRW):</label>
+            <input type="number" id="domestic-budget" min="0" class="form-control">
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button id="start-domestic-btn" class="btn btn-primary">Start Domestic Trip</button>
+            <button id="cancel-domestic" class="btn btn-outline-secondary">Back</button>
+        </div>
     </div>
 </div>
 
