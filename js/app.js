@@ -288,8 +288,8 @@ $(function() {
         return Number(expense.fx_rate).toFixed(6);
     }
 
-    function convertWithFrankfurter(amount, currency) {
-        const url = `https://api.frankfurter.app/latest?amount=${amount}&from=${currency}&to=KRW`;
+    function frankfurterConvert(amount, fromCurrency, toCurrency) {
+        const url = `https://api.frankfurter.app/latest?amount=${amount}&from=${fromCurrency}&to=${toCurrency}`;
         return fetch(url).then(resp => {
             if (!resp.ok) {
                 throw new Error('Frankfurter request failed');
@@ -297,38 +297,40 @@ $(function() {
             return resp.json();
         }).then(data => {
             const rates = data && data.rates ? data.rates : null;
-            const krwValue = rates && rates.KRW !== undefined ? Number(rates.KRW) : null;
-            if (!Number.isFinite(krwValue)) {
-                throw new Error('Frankfurter missing KRW rate');
+            const key = toCurrency;
+            const value = rates && rates[key] !== undefined ? Number(rates[key]) : null;
+            if (!Number.isFinite(value)) {
+                throw new Error('Frankfurter missing requested rate');
             }
-            const krwRaw = Number(krwValue);
-            const rate = amount ? krwRaw / amount : null;
-            return { krw: roundCurrency(krwRaw), rate, provider: 'frankfurter' };
-        });
-    }
-
-    function convertWithExchangeRateHost(amount, currency) {
-        const url = `https://api.exchangerate.host/convert?from=${currency}&to=KRW&amount=${amount}`;
-        return fetch(url).then(resp => {
-            if (!resp.ok) {
-                throw new Error('ExchangeRate.host request failed');
-            }
-            return resp.json();
-        }).then(data => {
-            const result = data && data.result !== undefined ? Number(data.result) : NaN;
-            if (!Number.isFinite(result) || data && data.success === false) {
-                throw new Error('ExchangeRate.host missing KRW rate');
-            }
-            const krwRaw = result;
-            const rate = amount ? krwRaw / amount : null;
-            return { krw: roundCurrency(krwRaw), rate, provider: 'exchangerate.host' };
+            return { amount: value };
         });
     }
 
     function convertToKRW(amount, currency) {
-        return convertWithFrankfurter(amount, currency).catch(() =>
-            convertWithExchangeRateHost(amount, currency)
-        );
+        if (currency === 'KRW') {
+            const krw = roundCurrency(amount);
+            const rate = amount ? krw / amount : 1;
+            return Promise.resolve({ krw, rate, provider: 'frankfurter' });
+        }
+
+        if (currency === 'USD') {
+            return frankfurterConvert(amount, 'USD', 'KRW').then(result => {
+                const krwRaw = result.amount;
+                const krw = roundCurrency(krwRaw);
+                const rate = amount ? krwRaw / amount : null;
+                return { krw, rate, provider: 'frankfurter' };
+            });
+        }
+
+        return frankfurterConvert(amount, currency, 'USD').then(usdResult => {
+            const usdAmount = usdResult.amount;
+            return frankfurterConvert(usdAmount, 'USD', 'KRW').then(krwResult => {
+                const krwRaw = krwResult.amount;
+                const krw = roundCurrency(krwRaw);
+                const rate = amount ? krwRaw / amount : null;
+                return { krw, rate, provider: 'frankfurter' };
+            });
+        });
     }
 
     function buildTextExport(trips) {
