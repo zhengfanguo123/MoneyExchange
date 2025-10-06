@@ -14,7 +14,7 @@ class CurrencyOverrideTests(unittest.TestCase):
 
 
 class FrankfurterSmokeTests(unittest.TestCase):
-    def test_frankfurter_two_step_conversion(self):
+    def test_frankfurter_usd_pivot_rates(self):
         currencies = {
             "KR": "KRW",
             "RU": "RUB",
@@ -24,40 +24,33 @@ class FrankfurterSmokeTests(unittest.TestCase):
         for code, currency in currencies.items():
             with self.subTest(country=code):
                 amount = 100
-                if currency == "KRW":
-                    usd_amount = amount
-                else:
-                    url_to_usd = (
-                        "https://api.frankfurter.app/latest?amount="
-                        f"{amount}&from={currency}&to=USD"
-                    )
-                    try:
-                        with urllib.request.urlopen(url_to_usd, timeout=10) as response:
-                            to_usd_payload = json.loads(response.read().decode("utf-8"))
-                    except urllib.error.URLError as exc:  # pragma: no cover - network issues
-                        self.skipTest(f"Frankfurter API not reachable: {exc}")
-
-                    self.assertIn("rates", to_usd_payload)
-                    rates = to_usd_payload["rates"]
-                    self.assertIn("USD", rates)
-                    usd_amount = rates["USD"]
-                    self.assertIsInstance(usd_amount, (int, float))
-                    self.assertGreater(usd_amount, 0)
-
-                url_to_krw = (
-                    "https://api.frankfurter.app/latest?amount="
-                    f"{usd_amount}&from=USD&to=KRW"
-                )
+                symbols = "KRW" if currency in {"KRW", "USD"} else f"KRW,{currency}"
+                url = f"https://api.frankfurter.app/latest?from=USD&to={symbols}"
                 try:
-                    with urllib.request.urlopen(url_to_krw, timeout=10) as response:
-                        to_krw_payload = json.loads(response.read().decode("utf-8"))
+                    with urllib.request.urlopen(url, timeout=10) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
                 except urllib.error.URLError as exc:  # pragma: no cover - network issues
                     self.skipTest(f"Frankfurter API not reachable: {exc}")
 
-                self.assertIn("rates", to_krw_payload)
-                krw_rates = to_krw_payload["rates"]
-                self.assertIn("KRW", krw_rates)
-                krw_amount = krw_rates["KRW"]
+                self.assertIn("rates", payload)
+                rates = payload["rates"]
+                self.assertIn("KRW", rates)
+                usd_to_krw = rates["KRW"]
+                self.assertIsInstance(usd_to_krw, (int, float))
+                self.assertGreater(usd_to_krw, 0)
+
+                if currency == "KRW":
+                    krw_amount = amount
+                elif currency == "USD":
+                    krw_amount = amount * usd_to_krw
+                else:
+                    self.assertIn(currency, rates)
+                    usd_to_local = rates[currency]
+                    self.assertIsInstance(usd_to_local, (int, float))
+                    self.assertGreater(usd_to_local, 0)
+                    usd_amount = amount / usd_to_local
+                    krw_amount = usd_amount * usd_to_krw
+
                 self.assertIsInstance(krw_amount, (int, float))
                 self.assertGreater(krw_amount, 0)
 

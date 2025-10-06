@@ -288,8 +288,13 @@ $(function() {
         return Number(expense.fx_rate).toFixed(6);
     }
 
-    function frankfurterConvert(amount, fromCurrency, toCurrency) {
-        const url = `https://api.frankfurter.app/latest?amount=${amount}&from=${fromCurrency}&to=${toCurrency}`;
+    function frankfurterUsdRates(targetCurrency) {
+        const symbols = new Set(['KRW']);
+        if (targetCurrency && targetCurrency !== 'USD' && targetCurrency !== 'KRW') {
+            symbols.add(targetCurrency);
+        }
+        const query = Array.from(symbols).join(',');
+        const url = `https://api.frankfurter.app/latest?from=USD&to=${query}`;
         return fetch(url).then(resp => {
             if (!resp.ok) {
                 throw new Error('Frankfurter request failed');
@@ -297,39 +302,52 @@ $(function() {
             return resp.json();
         }).then(data => {
             const rates = data && data.rates ? data.rates : null;
-            const key = toCurrency;
-            const value = rates && rates[key] !== undefined ? Number(rates[key]) : null;
-            if (!Number.isFinite(value)) {
-                throw new Error('Frankfurter missing requested rate');
+            if (!rates || rates.KRW === undefined) {
+                throw new Error('Frankfurter missing KRW rate');
             }
-            return { amount: value };
+            return {
+                krw: Number(rates.KRW),
+                local: targetCurrency && targetCurrency !== 'USD' && targetCurrency !== 'KRW'
+                    ? Number(rates[targetCurrency])
+                    : null,
+            };
         });
     }
 
     function convertToKRW(amount, currency) {
+        const numericAmount = toNumber(amount);
+        const baseAmount = Number.isFinite(numericAmount) ? numericAmount : 0;
+
         if (currency === 'KRW') {
-            const krw = roundCurrency(amount);
-            const rate = amount ? krw / amount : 1;
+            const krw = roundCurrency(baseAmount);
+            const rate = baseAmount ? krw / baseAmount : 1;
             return Promise.resolve({ krw, rate, provider: 'frankfurter' });
         }
 
         if (currency === 'USD') {
-            return frankfurterConvert(amount, 'USD', 'KRW').then(result => {
-                const krwRaw = result.amount;
+            return frankfurterUsdRates('USD').then(rates => {
+                const usdToKrw = Number(rates.krw);
+                if (!Number.isFinite(usdToKrw)) {
+                    throw new Error('Frankfurter missing KRW rate');
+                }
+                const krwRaw = baseAmount * usdToKrw;
                 const krw = roundCurrency(krwRaw);
-                const rate = amount ? krwRaw / amount : null;
+                const rate = baseAmount ? krwRaw / baseAmount : null;
                 return { krw, rate, provider: 'frankfurter' };
             });
         }
 
-        return frankfurterConvert(amount, currency, 'USD').then(usdResult => {
-            const usdAmount = usdResult.amount;
-            return frankfurterConvert(usdAmount, 'USD', 'KRW').then(krwResult => {
-                const krwRaw = krwResult.amount;
-                const krw = roundCurrency(krwRaw);
-                const rate = amount ? krwRaw / amount : null;
-                return { krw, rate, provider: 'frankfurter' };
-            });
+        return frankfurterUsdRates(currency).then(rates => {
+            const usdToKrw = Number(rates.krw);
+            const usdToLocal = Number(rates.local);
+            if (!Number.isFinite(usdToKrw) || !Number.isFinite(usdToLocal) || usdToLocal === 0) {
+                throw new Error('Frankfurter missing required rates');
+            }
+            const usdAmount = baseAmount / usdToLocal;
+            const krwRaw = usdAmount * usdToKrw;
+            const krw = roundCurrency(krwRaw);
+            const rate = baseAmount ? krwRaw / baseAmount : null;
+            return { krw, rate, provider: 'frankfurter' };
         });
     }
 
