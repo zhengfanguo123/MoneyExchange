@@ -1,0 +1,33 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 10px;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+}
+
+input, select, button {
+    width: 100%;
+    max-width: 100%;
+    margin-top: 8px;
+    box-sizing: border-box;
+}
+
+@media (min-width: 600px) {
+    body {
+        margin: 20px;
+    }
+
+    label {
+        display: inline-block;
+        margin: 0 10px 0 0;
+    }
+
+    input, select, button {
+        width: auto;
+        margin-top: 0;
+    }
+}
+

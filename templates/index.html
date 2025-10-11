@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>여행 경비 관리</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+</head>
+<body class="container py-4">
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <h1 class="mb-0">여행 경비 관리</h1>
+    <a class="btn btn-outline-secondary" href="{{ url_for('admin') }}">Admin</a>
+</div>
+<div id="setup" class="mb-4">
+    <div id="mode-selection" class="d-flex flex-wrap gap-2">
+        <button id="choose-world" class="btn btn-primary">해외 여행</button>
+        <button id="choose-domestic" class="btn btn-primary">국내 여행 (KRW)</button>
+    </div>
+
+    <div id="world-setup" class="mt-3" style="display:none;">
+        <div class="mb-3">
+            <label for="world-country" class="form-label">여행지: </label>
+            <select id="world-country" class="form-select">
+                {% for c in countries %}
+                <option value="{{ c.code }}" data-currency="{{ c.currency }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label for="world-budget" class="form-label">여행 총 경비 (KRW):</label>
+            <input type="number" id="world-budget" min="0" class="form-control">
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button id="start-world-btn" class="btn btn-primary">다른 나라로 여행 시작</button>
+            <button id="cancel-world" class="btn btn-outline-secondary">Back</button>
+        </div>
+    </div>
+
+    <div id="domestic-setup" class="mt-3" style="display:none;">
+        <div class="mb-3">
+            <label for="domestic-budget" class="form-label">여행 총 경비 (KRW):</label>
+            <input type="number" id="domestic-budget" min="0" class="form-control">
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <button id="start-domestic-btn" class="btn btn-primary">국내 여행 시작</button>
+            <button id="cancel-domestic" class="btn btn-outline-secondary">Back</button>
+        </div>
+    </div>
+</div>
+
+<div id="tracker" style="display:none;" class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h4 mb-0" id="trip-label"></h2>
+        <span class="badge bg-primary" id="trip-country"></span>
+    </div>
+    <p>Currency: <span id="currency-code"></span></p>
+    <p>Remaining Budget: <span id="remaining"></span> KRW</p>
+    <h2 class="h4">지출 추가: </h2>
+    <div class="row g-2 align-items-end">
+        <div class="col-sm-4">
+            <label for="amount" class="form-label">Amount:</label>
+            <input type="number" id="amount" min="0" step="0.01" class="form-control">
+        </div>
+        <div class="col-sm-4">
+            <label for="note" class="form-label">Note:</label>
+            <input type="text" id="note" class="form-control">
+        </div>
+        <div class="col-sm-4">
+            <button id="add-expense" class="btn btn-secondary w-100">Add</button>
+        </div>
+    </div>
+
+    <h2 class="h4 mt-3">지출 내역(지출내역은 삭제되지 않음)</h2>
+    <div class="table-responsive">
+        <table id="history" class="table table-bordered table-striped table-sm mb-0">
+            <thead>
+            <tr>
+                <th>Local Amount</th>
+                <th>KRW</th>
+                <th>Note</th>
+                <th>Remaining KRW</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <button id="import-btn" class="btn btn-info">지출 내역 확인</button>
+    <label for="export-scope" class="form-label mb-0">내보내기 범위</label>
+    <select id="export-scope" class="form-select w-auto">
+        <option value="current">현재 여행만</option>
+        <option value="all" selected>모든 여행</option>
+    </select>
+    <button id="export-txt-btn" class="btn btn-outline-primary">TXT 내보내기</button>
+    <button id="export-csv-btn" class="btn btn-outline-success">CSV 내보내기</button>
+    <button id="clear-storage-btn" class="btn btn-danger">지출 내역 삭제</button>
+</div>
+<div id="imported-section" style="display:none;">
+    <h2 class="h4 mb-3">지출 내역 증명</h2>
+    <div class="accordion" id="imported-content"></div>
+</div>
+
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4917384135963820"
+     crossorigin="anonymous"></script>
+<!-- line -->
+<ins class="adsbygoogle"
+     style="display:block"
+     data-ad-client="ca-pub-4917384135963820"
+     data-ad-slot="7944719729"
+     data-ad-format="auto"
+     data-full-width-responsive="true"></ins>
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
+
+
+
+</body>
+</html>
+
+

@@ -1,0 +1,3 @@
+Version for 2025.10.11 , that successfully have ME app with calculation of money exchange works
+
+this code is for the code that Copied from the aws cloud to the local 
